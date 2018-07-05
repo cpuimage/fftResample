@@ -94,7 +94,6 @@ void splitpath(const char *path, char *drv, char *dir, char *name, char *ext) {
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-
 void FFTResample(float *input, float *output, int sizeIn, int sizeOut) {
     fft_t *fftin = (fft_t *) calloc(sizeof(fft_t), sizeIn);
     fft_t *fftout = (fft_t *) calloc(sizeof(fft_t), sizeOut);
@@ -103,6 +102,7 @@ void FFTResample(float *input, float *output, int sizeIn, int sizeOut) {
             free(fftout);
         if (fftin)
             free(fftin);
+        return;
     }
     fft_real_object fftPlan = fft_real_init(sizeIn, 1);
     fft_r2c_exec(fftPlan, input, fftin);
