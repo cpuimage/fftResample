@@ -133,18 +133,8 @@ void resampler(char *in_file, char *out_file) {
     float *data_out = (float *) malloc(out_size * sizeof(float));
 
     if (data_in != NULL && data_out != NULL) {
-        int per_ms = 20;
-        int in_per_samples = per_ms * sampleRate / 1000;
-        int out_per_samples = per_ms * out_sampleRate / 1000;
-        int nCount = totalSampleCount / in_per_samples;
         double startTime = now();
-        float *cur_data_in = data_in;
-        float *cur_data_out = data_out;
-        for (int i = 0; i < nCount; ++i) {
-            FFTResample(cur_data_in, cur_data_out, in_per_samples, out_per_samples);
-            cur_data_in += in_per_samples;
-            cur_data_out += out_per_samples;
-        }
+        FFTResample(data_in, data_out, totalSampleCount, out_size);
         double time_interval = calcElapsed(startTime, now());
         printf("time interval: %d ms\n ", (int) (time_interval * 1000));
         wavWrite_float(out_file, data_out, out_sampleRate, (uint32_t) out_size);
