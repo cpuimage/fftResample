@@ -89,39 +89,35 @@ void splitpath(const char *path, char *drv, char *dir, char *name, char *ext) {
     }
 }
 
-
-#ifndef MIN
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-void FFTResample(float *input, float *output, int sizeIn, int sizeOut) {
-    fft_t *fftin = (fft_t *) calloc(sizeof(fft_t), sizeIn);
-    fft_t *fftout = (fft_t *) calloc(sizeof(fft_t), sizeOut);
-    if (fftin == NULL || fftout == NULL) {
-        if (fftout)
-            free(fftout);
-        if (fftin)
-            free(fftin);
+void FFTResample(float *input, float *output, int input_size, int expect_size) {
+    fft_t *expect = (fft_t *) calloc(sizeof(fft_t), MAX(input_size, expect_size));
+    if (expect == NULL) {
         return;
     }
-    fft_real_object fftPlan = fft_real_init(sizeIn, 1);
-    fft_r2c_exec(fftPlan, input, fftin);
+    fft_real_object fftPlan = fft_real_init(input_size, 1);
+    fft_r2c_exec(fftPlan, input, expect);
     free_real_fft(fftPlan);
-    int halfIn = (sizeIn / 2) + 1;
-    int halfOut = (sizeOut / 2) + 1;
-    for (int i = 0; i < MIN(halfIn, halfOut); ++i) {
-        fftout[i].re = fftin[i].re;
-        fftout[i].im = fftin[i].im;
+    int half_input = (input_size / 2) + 1;
+    int half_expect = (expect_size / 2) + 1;
+    if (half_input > half_expect) {
+        int len = (expect_size - half_expect);
+        memset(expect + half_expect, 0, sizeof(fft_t) * len);
+    } else {
+        int len = (expect_size - half_input);
+        memset(expect + half_input, 0, sizeof(fft_t) * len);
     }
-    fft_real_object ifftPlan = fft_real_init(sizeOut, -1);
-    fft_c2r_exec(ifftPlan, fftout, output);
+    fft_real_object ifftPlan = fft_real_init(expect_size, -1);
+    fft_c2r_exec(ifftPlan, expect, output);
     free_real_fft(ifftPlan);
-    float norm = 1.f / sizeIn;
-    for (int i = 0; i < sizeOut; ++i) {
+    float norm = 1.f / input_size;
+    for (int i = 0; i < expect_size; ++i) {
         output[i] = (output[i] * norm);
     }
-    free(fftout);
-    free(fftin);
+    free(expect);
 }
 
 void resampler(char *in_file, char *out_file) {
