@@ -93,31 +93,37 @@ void splitpath(const char *path, char *drv, char *dir, char *name, char *ext) {
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-void FFTResample(float *input, float *output, int input_size, int expect_size) {
-    fft_t *expect = (fft_t *) calloc(sizeof(fft_t), MAX(input_size, expect_size));
-    if (expect == NULL) {
+// <RESAMPLING BASED ON FFT>
+// https://www.dsprelated.com/showcode/54.php
+
+void FFTResample(float *input, float *output, size_t input_size, size_t output_size) {
+    fft_t *samples = (fft_t *) calloc(MAX(input_size, output_size), sizeof(fft_t));
+    if (samples == NULL) {
         return;
     }
     fft_real_object fftPlan = fft_real_init(input_size, 1);
-    fft_r2c_exec(fftPlan, input, expect);
+    fft_r2c_exec(fftPlan, input, samples);
     free_real_fft(fftPlan);
-    int half_input = (input_size / 2) + 1;
-    int half_expect = (expect_size / 2) + 1;
-    if (half_input > half_expect) {
-        int len = (expect_size - half_expect);
-        memset(expect + half_expect, 0, sizeof(fft_t) * len);
-    } else {
-        int len = (expect_size - half_input);
-        memset(expect + half_input, 0, sizeof(fft_t) * len);
+    if (output_size < input_size) {
+        // remove some high frequency samples;
+        size_t half_output = (output_size / 2);
+        size_t diff_size = input_size - output_size;
+        memset(samples + half_output, 0, diff_size * sizeof(fft_t));
+    } else if (output_size > input_size) {
+        size_t half_input = input_size / 2;
+        // add some high frequency zero samples
+        size_t diff_size = output_size - input_size;
+        memmove(samples + half_input + diff_size, samples + half_input, half_input * sizeof(fft_t));
+        memset(samples + half_input, 0, diff_size * sizeof(fft_t));
     }
-    fft_real_object ifftPlan = fft_real_init(expect_size, -1);
-    fft_c2r_exec(ifftPlan, expect, output);
+    fft_real_object ifftPlan = fft_real_init(output_size, -1);
+    fft_c2r_exec(ifftPlan, samples, output);
     free_real_fft(ifftPlan);
-    float norm = 1.f / input_size;
-    for (int i = 0; i < expect_size; ++i) {
-        output[i] = (output[i] * norm);
+    float norm = 1.0f / input_size;
+    for (int i = 0; i < output_size; i++) {
+        output[i] = output[i] * norm;
     }
-    free(expect);
+    free(samples);
 }
 
 void resampler(char *in_file, char *out_file) {
@@ -125,7 +131,7 @@ void resampler(char *in_file, char *out_file) {
     uint64_t totalSampleCount = 0;
     float *data_in = wavRead_float(in_file, &sampleRate, &totalSampleCount);
     uint32_t out_sampleRate = 48000;
-    uint32_t out_size = (uint32_t) (totalSampleCount * ((float) out_sampleRate / sampleRate));
+    uint32_t out_size = (uint32_t)(totalSampleCount * ((float) out_sampleRate / sampleRate));
     float *data_out = (float *) malloc(out_size * sizeof(float));
 
     if (data_in != NULL && data_out != NULL) {
